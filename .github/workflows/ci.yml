@@ -1,0 +1,166 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Pipeline mode"
+        required: true
+        default: compile
+        type: choice
+        options:
+          - compile   # build + unit tests on the simulator, no signing
+          # dry_run / inspect / prepare / release lanes are copied from the
+          # FollowDeck ci.yml and parameterized once the ASC App ID and signing
+          # material exist.
+
+env:
+  SCHEME: ProofDeck
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  validate:
+    name: Validate structure & secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Required paths exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          for p in \
+            "project.yml" \
+            "ProofDeck/Sources/ProofDeck/Info.plist" \
+            "ProofDeck/Sources/ProofDeck/App/ProofDeckApp.swift" \
+            "ProofDeck/Sources/ProofDeck/Models/Models.swift" \
+            "ProofDeck/Sources/ProofDeck/Persistence/PersistenceController.swift" \
+            "README.md"; do
+            test -f "$p" || { echo "Missing required path: $p"; exit 1; }
+          done
+
+      - name: Scan for committed secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE --exclude-dir=.git \
+            -e "BEGIN [A-Z ]*PRIVATE KEY" \
+            -e "github_[p]at_[A-Za-z0-9_]{20,}" \
+            -e "gh[p]_[A-Za-z0-9]{20,}" \
+            -e "gh[o]_[A-Za-z0-9]{20,}" \
+            -e "-----BEGIN" \
+            ProofDeck project.yml 2>/dev/null; then
+            echo "::error::Possible secret committed to source. Remove it before merging."
+            exit 1
+          fi
+          echo "No obvious secret patterns in source."
+
+      - name: Validate YAML
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import glob, yaml, sys
+          ok = True
+          for f in glob.glob(".github/workflows/*.yml") + ["project.yml"]:
+              try:
+                  yaml.safe_load(open(f, encoding="utf-8"))
+                  print("valid:", f)
+              except Exception as e:
+                  print("invalid:", f, e); ok = False
+          sys.exit(0 if ok else 1)
+          PY
+
+  macos-build:
+    name: macOS build (${{ github.event.inputs.action || 'compile' }})
+    # Xcode 27 toolchain: App Store Connect rejects iOS 26 SDK builds from
+    # April 2027 (ITMS-90725), so shipping builds must use the iOS 27+ SDK.
+    runs-on: xcode-27
+    timeout-minutes: 90
+    if: github.event_name != 'pull_request' || github.event.inputs.action == ''
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select newest usable Xcode
+        run: |
+          set -euo pipefail
+          chosen=""
+          for app in $(ls -d /Applications/Xcode*.app 2>/dev/null | sort -Vr); do
+            if [ -d "$app/Contents/Developer" ]; then chosen="$app"; break; fi
+          done
+          if [ -z "$chosen" ]; then
+            echo "::error::No usable Xcode toolchain. Installed:"; ls /Applications | grep -i xcode; exit 1
+          fi
+          echo "Selected: $chosen"
+          sudo xcode-select -s "$chosen/Contents/Developer"
+          xcodebuild -version
+          SDK=$(xcrun --sdk iphoneos --show-sdk-version)
+          echo "iOS SDK: $SDK"
+          case "$SDK" in
+            27.*|28.*|29.*) ;;
+            *) echo "::error::iOS SDK $SDK is below 27.0 (ITMS-90725)."; exit 1 ;;
+          esac
+
+      - name: Install XcodeGen
+        run: |
+          set -euo pipefail
+          if command -v xcodegen >/dev/null 2>&1; then
+            xcodegen --version; exit 0
+          fi
+          if command -v brew >/dev/null 2>&1; then
+            brew install xcodegen && xcodegen --version && exit 0
+          fi
+          mkdir -p "$RUNNER_TEMP/xcodegen" "$HOME/.local/bin"
+          curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" \
+            https://github.com/yonaskolb/XcodeGen/releases/latest/download/xcodegen.zip
+          unzip -q -o "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP/xcodegen"
+          bin=$(find "$RUNNER_TEMP/xcodegen" -type f -name xcodegen -perm -u+x | head -1)
+          test -n "$bin" || { echo "::error::xcodegen binary not found in release archive"; exit 1; }
+          cp "$bin" "$HOME/.local/bin/xcodegen"
+          chmod +x "$HOME/.local/bin/xcodegen"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/xcodegen" --version
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick newest available iPhone simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          name=$(xcrun simctl list devices available \
+            | grep -oE "iPhone [0-9]+ Pro Max" | sort -Vr | head -1)
+          if [ -z "$name" ]; then
+            name=$(xcrun simctl list devices available | grep -oE "iPhone [0-9]+" | sort -Vr | head -1)
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "Simulator: $name"
+
+      - name: Build for simulator (compile)
+        if: github.event_name == 'push' || github.event.inputs.action == 'compile'
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -project ProofDeck.xcodeproj \
+            -scheme "$SCHEME" \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
+            -configuration Debug \
+            -quiet
+
+      - name: Run unit tests
+        if: github.event_name == 'push' || github.event.inputs.action == 'compile'
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project ProofDeck.xcodeproj \
+            -scheme "$SCHEME" \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
+            -configuration Debug

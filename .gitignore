@@ -1,0 +1,46 @@
+# ---- Xcode / Swift Package Manager ----
+.DS_Store
+*.xcuserstate
+xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+# XcodeGen generates the .xcodeproj on the CI runner; it is never committed.
+*.xcodeproj/
+*.moved-aside
+*.pbxuser
+*.perspectivev3
+DerivedData/
+Build/
+*.build/
+.swiftpm/
+Package.resolved
+
+# ---- Swift ----
+*.swp
+.build/
+
+# ---- App signing / secrets (must never be committed) ----
+*.p12
+*.p8
+*.mobileprovision
+*.keystore
+secrets/
+.env
+.env.*
+Config/Secrets.swift
+
+# ---- IDE ----
+.idea/
+.vscode/
+*.ipr
+*.iws
+
+# ---- OS junk ----
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ---- Exported archives ----
+*.ipa
+*.dmg
+*.zip
