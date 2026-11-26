@@ -26,48 +26,46 @@ protocol StoreProtocol: AnyObject {
 
 /// First local implementation: holds records in memory. Replaced by the
 /// SwiftData store without changing call sites.
-@MainActor
 final class InMemoryStore: StoreProtocol {
-    private var assets: [Asset] = []
-    private var clips: [ReuseClip] = []
+    private var assetRecords: [Asset] = []
+    private var clipRecords: [ReuseClip] = []
 
-    func assets() -> [Asset] { assets }
+    func assets() -> [Asset] { assetRecords }
 
-    func asset(id: UUID) -> Asset? { assets.first { $0.id == id } }
+    func asset(id: UUID) -> Asset? { assetRecords.first { $0.id == id } }
 
     func addAsset(_ asset: Asset) {
-        assets.append(asset)
+        assetRecords.append(asset)
     }
 
     func updateAsset(_ asset: Asset) {
-        guard let index = assets.firstIndex(where: { $0.id == asset.id }) else { return }
-        assets[index] = asset
+        guard let index = assetRecords.firstIndex(where: { $0.id == asset.id }) else { return }
+        assetRecords[index] = asset
     }
 
     func deleteAsset(id: UUID) {
-        assets.removeAll { $0.id == id }
-        clips.removeAll { $0.assetID == id }
+        assetRecords.removeAll { $0.id == id }
+        clipRecords.removeAll { $0.assetID == id }
     }
 
     func clips(for assetID: UUID) -> [ReuseClip] {
-        clips.filter { $0.assetID == assetID }
+        clipRecords.filter { $0.assetID == assetID }
     }
 
     func addClip(_ clip: ReuseClip) {
-        clips.append(clip)
+        clipRecords.append(clip)
     }
 
     func markReused(id: UUID, at date: Date) {
-        guard let index = assets.firstIndex(where: { $0.id == id }) else { return }
-        assets[index].lastReusedAt = date
+        guard let index = assetRecords.firstIndex(where: { $0.id == id }) else { return }
+        assetRecords[index].lastReusedAt = date
     }
 }
 
 /// Shared persistence entry point. Replacing `makeStore()` with a SwiftData-backed
 /// store does not affect the rest of the app.
-@MainActor
 final class PersistenceController {
-    static let shared: PersistenceController = PersistenceController()
+    static let shared = PersistenceController()
 
     private let store: StoreProtocol
 

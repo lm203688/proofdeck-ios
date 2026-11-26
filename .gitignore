@@ -40,6 +40,11 @@ Thumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 
+# ---- Local push / shell scratch ----
+push.err
+push.out
+*.tmp
+
 # ---- Exported archives ----
 *.ipa
 *.dmg

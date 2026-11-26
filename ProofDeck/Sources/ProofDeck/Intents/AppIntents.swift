@@ -34,7 +34,7 @@ struct ArchiveAssetIntent: AppIntent {
     @Parameter(title: "Project title")
     var title: String
 
-    @Parameter(title: "Notes", optional: true)
+    @Parameter(title: "Notes")
     var notes: String?
 
     func perform() async throws -> some IntentResult {

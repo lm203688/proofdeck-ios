@@ -31,7 +31,7 @@ final class AssetSorterTests: XCTestCase {
                               updatedAt: Date(timeIntervalSince1970: 3_000_000))
 
         let sorted = AssetSorter.sorted([older, recent, featured])
-        XCTAssertEqual(sorted.map(\.title), ["Featured", "Recent", "Old"])
+        XCTAssertEqual(sorted.map(\.projectTitle), ["Featured", "Recent", "Old"])
     }
 
     func testMatchesTitleIndustrySkillsCaseInsensitive() {
