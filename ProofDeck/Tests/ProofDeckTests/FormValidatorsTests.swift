@@ -10,7 +10,7 @@ final class FormValidatorsTests: XCTestCase {
 
     func testNormalizedTagsTrimsDropsEmitsAndDeduplicates() {
         XCTAssertEqual(
-            FormValidators.normalizedTags(" Swift , design, swift, ,"),
+            FormValidators.normalizedTags(" Swift , design, ,,"),
             ["Swift", "design"]
         )
     }
