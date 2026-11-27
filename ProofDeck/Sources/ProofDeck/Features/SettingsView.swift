@@ -4,14 +4,24 @@
 //
 //  About, privacy summary and the local-only feedback mailto draft. The feedback
 //  message is composed by the system mail app; the app never sends or uploads it.
-//  The recipient is a placeholder until the developer support inbox is set.
 //
 
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
 
     private let info = AppInfo.current()
+
+    private var feedbackURL: URL? {
+        let device = "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)"
+        let body = "Device: \(device)\nApp: \(info.versionDisplay)\n\n"
+        return FeedbackMail.composeURL(
+            to: FeedbackMail.recipient,
+            subject: "ProofDeck feedback",
+            body: body
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -30,11 +40,7 @@ struct SettingsView: View {
                 }
 
                 Section("Feedback") {
-                    if let url = FeedbackMail.composeURL(
-                        to: FeedbackMail.recipient,
-                        subject: "ProofDeck feedback",
-                        body: ""
-                    ) {
+                    if let url = feedbackURL {
                         Link(destination: url) {
                             Label("Send feedback", systemImage: "envelope")
                         }
