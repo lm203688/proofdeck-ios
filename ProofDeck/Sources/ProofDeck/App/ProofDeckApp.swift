@@ -2,34 +2,38 @@
 //  ProofDeckApp.swift
 //  ProofDeck
 //
-//  Composition root. The first skeleton wires the local store behind the
-//  persistence protocol; feature tabs and settings views follow once the domain
-//  screens are filled in. No StoreKit, account or remote service is wired here yet.
+//  Composition root. The local store sits behind the persistence protocol; the
+//  SwiftUI screens read and write through the shared `StoreViewModel`. No
+//  StoreKit, account or remote service is wired here yet.
 //
 
 import SwiftUI
 
 @main
 struct ProofDeckApp: App {
+
+    @StateObject private var viewModel: StoreViewModel
+
+    init() {
+        let store = PersistenceController.shared.makeStore()
+        _viewModel = StateObject(wrappedValue: StoreViewModel(store: store))
+        // Refresh the registered Siri / Shortcuts suggestions for the current intents.
+        ProofDeckShortcuts.updateAppShortcutParameters()
+    }
+
     var body: some Scene {
         WindowGroup {
-            RootView()
+            TabView {
+                AssetListView(viewModel: viewModel)
+                    .tabItem {
+                        Label("Archive", systemImage: "archivebox")
+                    }
+                SettingsView()
+                    .tabItem {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+            }
+            .environmentObject(viewModel)
         }
-    }
-}
-
-/// Placeholder root view. Replace with the first real feature tab/flow.
-struct RootView: View {
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "archivebox")
-                .font(.largeTitle)
-            Text("ProofDeck")
-                .font(.title2)
-            Text("Deliverable archive and reusable proof cards — skeleton.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .padding()
     }
 }
