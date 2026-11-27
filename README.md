@@ -47,7 +47,8 @@ payments/invoices/tax, team seats, built-in product sales, open Q&A.
     ├── Sources/ProofDeck/
     │   ├── App/ProofDeckApp.swift      # @main composition root
     │   ├── Models/Models.swift         # plain Codable domain models
-    │   ├── Persistence/PersistenceController.swift  # store protocol + in-memory store
+    │   ├── Persistence/PersistenceController.swift  # store protocol + SwiftData container
+    │   ├── Persistence/SwiftDataStore.swift         # @Model records + SwiftData-backed store
     │   ├── Services/                    # A-class core + domain services
     │   ├── Intents/                     # AppIntents, AppEntity, shortcuts provider
     │   ├── Assets.xcassets/
@@ -65,9 +66,9 @@ payments/invoices/tax, team seats, built-in product sales, open Q&A.
 - **B-class, parameterize:** subscription manager/service, entitlement, paywall plan and
   presentation, product IDs. Strip product IDs and inject the product set; StoreKit is
   intentionally left empty until the ASC record exists.
-- **C-class, generalize or rebuild:** SwiftData container and store, Spotlight /
-  reminder / deep-link / widget snapshot, on-device model bridge and draft generator,
-  domain models and feature views.
+- **C-class, generalize or rebuild:** Spotlight / reminder / deep-link / widget
+  snapshot, on-device model bridge and draft generator, domain models and feature
+  views. The SwiftData container and store are now wired in behind the store protocol.
 
 ## CI lanes
 
@@ -85,7 +86,8 @@ payments/invoices/tax, team seats, built-in product sales, open Q&A.
   territory availability excluding CHN.
 - Route B signing material: distribution `.p12` + App Store profiles, kept as CI
   secrets only.
-- SwiftData-backed store replacing the in-memory skeleton; Share Extension. Spotlight indexing and the widget snapshot are already wired.
+- Share Extension (cross-app share text/URL into a draft). Spotlight indexing, the
+  widget snapshot and the SwiftData-backed local store are already wired.
 - Brand name public coarse check: trademark class 9/42 proximity + domain availability
   (non-legal opinion); fallback names `ArchiveDeck` / `CaseFolio` if a conflict appears.
 
