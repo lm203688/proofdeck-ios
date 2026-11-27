@@ -80,7 +80,7 @@ final class PersistenceController {
         container = try ModelContainer(for: SDAsset.self, SDClip.self)
     }
 
-    var context: ModelContext { container.mainContext }
+    var context: ModelContext { ModelContext(container) }
 
     func makeStore() -> StoreProtocol {
         SwiftDataStore(context: context)
