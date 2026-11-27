@@ -2,15 +2,15 @@
 //  PersistenceController.swift
 //  ProofDeck
 //
-//  Store protocol and the first local implementation. The first skeleton ships
-//  an in-memory store so the app, intents and offline tests compile without a
-//  SwiftData container. The SwiftData-backed store and @Model records are added
-//  in the next iteration; the protocol keeps that swap behind the same interface.
+//  Store protocol shared by the app, intents and offline tests. The production
+//  entry point builds a SwiftData container; `InMemoryStore` remains a test /
+//  preview stub that satisfies the same protocol.
 //
 //  Local-first; no CloudKit or account sync is enabled here.
 //
 
 import Foundation
+import SwiftData
 
 /// Read/write interface over the local asset cards and reuse clips.
 protocol StoreProtocol: AnyObject {
@@ -62,16 +62,27 @@ final class InMemoryStore: StoreProtocol {
     }
 }
 
-/// Shared persistence entry point. Replacing `makeStore()` with a SwiftData-backed
-/// store does not affect the rest of the app.
+/// Shared persistence entry point backed by a SwiftData container. The store
+/// protocol keeps views, intents and tests independent of the persistence layer;
+/// `InMemoryStore` remains available as a test / preview stub.
 final class PersistenceController {
-    static let shared = PersistenceController()
+    static let shared: PersistenceController = {
+        do {
+            return try PersistenceController()
+        } catch {
+            fatalError("Unable to initialize SwiftData ModelContainer: \(error)")
+        }
+    }()
 
-    private let store: StoreProtocol
+    let container: ModelContainer
 
-    private init(store: StoreProtocol = InMemoryStore()) {
-        self.store = store
+    private init() throws {
+        container = try ModelContainer(for: SDAsset.self, SDClip.self)
     }
 
-    func makeStore() -> StoreProtocol { store }
+    var context: ModelContext { container.mainContext }
+
+    func makeStore() -> StoreProtocol {
+        SwiftDataStore(context: context)
+    }
 }
