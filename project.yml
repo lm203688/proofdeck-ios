@@ -28,6 +28,7 @@ targets:
     platform: iOS
     sources:
       - path: ProofDeck/Sources/ProofDeck
+      - path: ProofDeck/Shared
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.lixing.proofdeck
       INFOPLIST_FILE: ProofDeck/Sources/ProofDeck/Info.plist
@@ -35,6 +36,25 @@ targets:
       TARGETED_DEVICE_FAMILY: "1,2"   # iPhone + iPad
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       CODE_STYLE: Swift
+    dependencies:
+      - target: ProofDeckWidget
+        embed: true
+        link: false
+
+  ProofDeckWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ProofDeck/Widgets/ProofDeckWidget
+      - path: ProofDeck/Shared
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.lixing.proofdeck.widget
+      INFOPLIST_FILE: ProofDeck/Widgets/ProofDeckWidget/Info.plist
+      CODE_SIGN_ENTITLEMENTS: ProofDeck/Widgets/ProofDeckWidget/ProofDeckWidget.entitlements
+      GENERATE_INFOPLIST_FILE: NO
+      TARGETED_DEVICE_FAMILY: "1,2"
+      CODE_STYLE: Swift
+    dependencies: []
 
   ProofDeckTests:
     type: bundle.unit-test

@@ -10,6 +10,7 @@
 
 import Foundation
 import SwiftUI
+import WidgetKit
 
 @MainActor
 final class StoreViewModel: ObservableObject {
@@ -90,5 +91,12 @@ final class StoreViewModel: ObservableObject {
 
     private func reload() {
         assets = AssetSorter.sorted(store.assets())
+        refreshWidget()
+    }
+
+    /// Rebuild the shared widget summary and ask the system to refresh active widgets.
+    private func refreshWidget() {
+        WidgetSnapshotBuilder.refresh(from: store)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 }
