@@ -34,6 +34,11 @@ struct ProofDeckApp: App {
                     }
             }
             .environmentObject(viewModel)
+            .onOpenURL { url in
+                if url.host == "share" {
+                    viewModel.adoptDraft()
+                }
+            }
         }
     }
 }
