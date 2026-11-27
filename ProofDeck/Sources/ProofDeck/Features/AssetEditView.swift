@@ -16,6 +16,7 @@ struct AssetEditView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var viewModel: StoreViewModel
     let editing: Asset?
+    private let draft: ShareDraft?
 
     @State private var title: String
     @State private var clientName: String
@@ -25,14 +26,15 @@ struct AssetEditView: View {
     @State private var reusableNotes: String
     @State private var featured: Bool
 
-    init(editing: Asset? = nil) {
+    init(editing: Asset? = nil, draft: ShareDraft? = nil) {
         self.editing = editing
-        _title = State(initialValue: editing?.projectTitle ?? "")
+        self.draft = draft
+        _title = State(initialValue: draft?.title ?? editing?.projectTitle ?? "")
         _clientName = State(initialValue: editing?.clientName ?? "")
         _role = State(initialValue: editing?.role ?? "")
         _industry = State(initialValue: editing?.industry ?? "")
         _skillsText = State(initialValue: editing?.skills.joined(separator: ", ") ?? "")
-        _reusableNotes = State(initialValue: editing?.reusableNotes ?? "")
+        _reusableNotes = State(initialValue: draft?.body ?? editing?.reusableNotes ?? "")
         _featured = State(initialValue: editing?.status == .featured)
     }
 
@@ -73,6 +75,7 @@ struct AssetEditView: View {
 
     private func save() {
         let base = editing ?? Asset(projectTitle: "")
+        let incomingLinks = draft?.link.map { [MediaLink(url: $0)] } ?? []
         let asset = Asset(
             id: base.id,
             projectTitle: FormValidators.requiredText(title) ?? "",
@@ -84,7 +87,7 @@ struct AssetEditView: View {
             outcomes: base.outcomes,
             testimonial: base.testimonial,
             reusableNotes: reusableNotes.trimmingCharacters(in: .whitespacesAndNewlines),
-            mediaLinks: base.mediaLinks,
+            mediaLinks: base.mediaLinks.isEmpty ? incomingLinks : base.mediaLinks,
             status: featured ? .featured : .archived,
             sourceDealID: base.sourceDealID,
             createdAt: base.createdAt,
