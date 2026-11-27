@@ -18,9 +18,12 @@ final class StoreViewModel: ObservableObject {
     @Published var searchText: String = ""
 
     private let store: StoreProtocol
+    private let spotlight: SpotlightIndexerProtocol
 
-    init(store: StoreProtocol = PersistenceController.shared.makeStore()) {
+    init(store: StoreProtocol = PersistenceController.shared.makeStore(),
+         spotlight: SpotlightIndexerProtocol = SpotlightIndexer.shared) {
         self.store = store
+        self.spotlight = spotlight
         reload()
     }
 
@@ -60,11 +63,13 @@ final class StoreViewModel: ObservableObject {
         } else {
             store.updateAsset(asset)
         }
+        spotlight.index(asset: asset)
         reload()
     }
 
     func delete(id: UUID) {
         store.deleteAsset(id: id)
+        spotlight.removeRecord(id: id)
         reload()
     }
 
@@ -73,6 +78,7 @@ final class StoreViewModel: ObservableObject {
         updated.status = asset.status == .featured ? .archived : .featured
         updated.updatedAt = Date()
         store.updateAsset(updated)
+        spotlight.index(asset: updated)
         reload()
     }
 

@@ -24,7 +24,7 @@ struct ProofDeckApp: App {
     var body: some Scene {
         WindowGroup {
             TabView {
-                AssetListView(viewModel: viewModel)
+                AssetListView()
                     .tabItem {
                         Label("Archive", systemImage: "archivebox")
                     }

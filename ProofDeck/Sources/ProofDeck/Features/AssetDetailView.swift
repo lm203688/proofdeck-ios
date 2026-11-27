@@ -13,7 +13,7 @@ import UIKit
 
 struct AssetDetailView: View {
 
-    @ObservedObject var viewModel: StoreViewModel
+    @EnvironmentObject var viewModel: StoreViewModel
     let assetID: UUID
 
     @Environment(\.dismiss) private var dismiss
@@ -58,7 +58,7 @@ struct AssetDetailView: View {
         }
         .sheet(isPresented: $showingEdit) {
             if let asset {
-                AssetEditView(viewModel: viewModel, editing: asset)
+                AssetEditView(editing: asset)
             }
         }
         .alert("Delete this card?", isPresented: $showingDeleteConfirmation) {

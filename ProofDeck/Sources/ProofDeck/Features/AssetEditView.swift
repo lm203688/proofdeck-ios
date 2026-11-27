@@ -14,7 +14,7 @@ import SwiftUI
 struct AssetEditView: View {
 
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var viewModel: StoreViewModel
+    @EnvironmentObject var viewModel: StoreViewModel
     let editing: Asset?
 
     @State private var title: String
@@ -25,8 +25,7 @@ struct AssetEditView: View {
     @State private var reusableNotes: String
     @State private var featured: Bool
 
-    init(viewModel: StoreViewModel, editing: Asset? = nil) {
-        self.viewModel = viewModel
+    init(editing: Asset? = nil) {
         self.editing = editing
         _title = State(initialValue: editing?.projectTitle ?? "")
         _clientName = State(initialValue: editing?.clientName ?? "")

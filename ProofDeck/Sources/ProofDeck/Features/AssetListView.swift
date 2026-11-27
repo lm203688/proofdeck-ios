@@ -11,7 +11,7 @@ import SwiftUI
 
 struct AssetListView: View {
 
-    @ObservedObject var viewModel: StoreViewModel
+    @EnvironmentObject var viewModel: StoreViewModel
     @State private var showingNew = false
     @State private var csvURL: URL?
 
@@ -27,7 +27,7 @@ struct AssetListView: View {
                 } else {
                     ForEach(viewModel.filteredAssets) { asset in
                         NavigationLink {
-                            AssetDetailView(viewModel: viewModel, assetID: asset.id)
+                            AssetDetailView(assetID: asset.id)
                         } label: {
                             AssetRow(asset: asset)
                         }
@@ -53,7 +53,7 @@ struct AssetListView: View {
                 }
             }
             .sheet(isPresented: $showingNew) {
-                AssetEditView(viewModel: viewModel, editing: nil)
+                AssetEditView(editing: nil)
             }
             .onAppear(perform: prepareCSV)
         }
