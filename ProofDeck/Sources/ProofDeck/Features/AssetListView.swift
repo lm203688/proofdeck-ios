@@ -13,6 +13,7 @@ struct AssetListView: View {
 
     @EnvironmentObject var viewModel: StoreViewModel
     @State private var showingNew = false
+    @State private var draft: ShareDraft?
     @State private var csvURL: URL?
 
     var body: some View {
@@ -54,6 +55,14 @@ struct AssetListView: View {
             }
             .sheet(isPresented: $showingNew) {
                 AssetEditView(editing: nil)
+            }
+            .sheet(item: $draft) { draft in
+                AssetEditView(editing: nil, draft: draft)
+            }
+            .onReceive(viewModel.$pendingDraft) { pending in
+                guard let pending else { return }
+                draft = pending
+                viewModel.clearDraft()
             }
             .onAppear(perform: prepareCSV)
         }
