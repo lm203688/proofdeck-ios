@@ -53,6 +53,8 @@ payments/invoices/tax, team seats, built-in product sales, open Q&A.
     │   ├── Assets.xcassets/
     │   ├── Info.plist
     │   └── ProofDeck.entitlements
+    ├── Shared/WidgetSnapshot.swift     # cross-target snapshot model + App Group store
+    ├── Widgets/ProofDeckWidget/        # WidgetKit extension embedded in the app
     └── Tests/ProofDeckTests/           # offline unit tests (stubbed, no network/model)
 ```
 
@@ -78,13 +80,12 @@ payments/invoices/tax, team seats, built-in product sales, open Q&A.
 
 ## Pre-release items still to fill
 
-- 1024×1024 opaque (no alpha, no tRNS) brand icon in `AppIcon.appiconset`.
+- Placeholder 1024×1024 opaque (24bpp RGB, no alpha) icon in `AppIcon.appiconset`; the final brand icon replaces it once the name is locked.
 - ASC App ID, privacy questionnaire (No Data Collected starting point), age rating,
   territory availability excluding CHN.
 - Route B signing material: distribution `.p12` + App Store profiles, kept as CI
   secrets only.
-- SwiftData-backed store replacing the in-memory skeleton; feature views; Spotlight
-  indexing; Share Extension; widget snapshot (phase 2).
+- SwiftData-backed store replacing the in-memory skeleton; Share Extension. Spotlight indexing and the widget snapshot are already wired.
 - Brand name public coarse check: trademark class 9/42 proximity + domain availability
   (non-legal opinion); fallback names `ArchiveDeck` / `CaseFolio` if a conflict appears.
 
