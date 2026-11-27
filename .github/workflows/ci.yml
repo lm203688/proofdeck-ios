@@ -44,7 +44,9 @@ jobs:
             "ProofDeck/Sources/ProofDeck/Models/Models.swift" \
             "ProofDeck/Sources/ProofDeck/Persistence/PersistenceController.swift" \
             "ProofDeck/Shared/WidgetSnapshot.swift" \
+            "ProofDeck/Shared/ShareDraft.swift" \
             "ProofDeck/Widgets/ProofDeckWidget/ProofDeckWidget.swift" \
+            "ProofDeck/Extensions/ProofDeckShare/ShareViewController.swift" \
             "README.md"; do
             test -f "$p" || { echo "Missing required path: $p"; exit 1; }
           done
