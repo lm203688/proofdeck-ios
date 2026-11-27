@@ -20,7 +20,7 @@ final class SwiftDataStoreTests: XCTestCase {
             for: SDAsset.self, SDClip.self,
             configurations: configuration
         )
-        return SwiftDataStore(context: container.mainContext)
+        return SwiftDataStore(context: ModelContext(container))
     }
 
     private func makeAsset() -> Asset {
