@@ -55,7 +55,9 @@ payments/invoices/tax, team seats, built-in product sales, open Q&A.
     │   ├── Info.plist
     │   └── ProofDeck.entitlements
     ├── Shared/WidgetSnapshot.swift     # cross-target snapshot model + App Group store
+    ├── Shared/ShareDraft.swift         # share draft model + one-shot App Group store + parser
     ├── Widgets/ProofDeckWidget/        # WidgetKit extension embedded in the app
+    ├── Extensions/ProofDeckShare/      # share-services extension embedded in the app
     └── Tests/ProofDeckTests/           # offline unit tests (stubbed, no network/model)
 ```
 
@@ -86,8 +88,8 @@ payments/invoices/tax, team seats, built-in product sales, open Q&A.
   territory availability excluding CHN.
 - Route B signing material: distribution `.p12` + App Store profiles, kept as CI
   secrets only.
-- Share Extension (cross-app share text/URL into a draft). Spotlight indexing, the
-  widget snapshot and the SwiftData-backed local store are already wired.
+- Spotlight indexing, the widget snapshot, the SwiftData-backed local store and the
+  Share Extension (shared text/URL into a pre-filled draft) are already wired.
 - Brand name public coarse check: trademark class 9/42 proximity + domain availability
   (non-legal opinion); fallback names `ArchiveDeck` / `CaseFolio` if a conflict appears.
 
