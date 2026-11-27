@@ -53,11 +53,12 @@ payments/invoices/tax, team seats, built-in product sales, open Q&A.
     │   ├── Intents/                     # AppIntents, AppEntity, shortcuts provider
     │   ├── Assets.xcassets/
     │   ├── Info.plist
+    │   ├── PrivacyInfo.xcprivacy        # privacy manifest (UserDefaults App Group reason)
     │   └── ProofDeck.entitlements
     ├── Shared/WidgetSnapshot.swift     # cross-target snapshot model + App Group store
     ├── Shared/ShareDraft.swift         # share draft model + one-shot App Group store + parser
-    ├── Widgets/ProofDeckWidget/        # WidgetKit extension embedded in the app
-    ├── Extensions/ProofDeckShare/      # share-services extension embedded in the app
+    ├── Widgets/ProofDeckWidget/        # WidgetKit extension embedded in the app (+ privacy manifest)
+    ├── Extensions/ProofDeckShare/      # share-services extension embedded in the app (+ privacy manifest)
     └── Tests/ProofDeckTests/           # offline unit tests (stubbed, no network/model)
 ```
 
@@ -91,7 +92,8 @@ payments/invoices/tax, team seats, built-in product sales, open Q&A.
 - Spotlight indexing, the widget snapshot, the SwiftData-backed local store and the
   Share Extension (shared text/URL into a pre-filled draft) are already wired.
 - Brand name public coarse check: trademark class 9/42 proximity + domain availability
-  (non-legal opinion); fallback names `ArchiveDeck` / `CaseFolio` if a conflict appears.
+  (non-legal opinion); primary `ArchiveDeck`, fallbacks `ArchivDeck` / `DoneDeck` / `PortDeck`
+  if a conflict appears. CaseFolio / ProofStack / Workfolio / ReelDeck / Workdeck are ruled out.
 
 ## Off-device note
 
