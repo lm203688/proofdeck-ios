@@ -31,7 +31,7 @@ final class WidgetSnapshotBuilderTests: XCTestCase {
     func testTopTitlesPutFeaturedFirst() {
         let store = makeStore()
         let archived = Asset(projectTitle: "Archived First", status: .archived, updatedAt: Date())
-        let featured = Asset(projectTitle: "Featured First", status: .featured, updatedAt: Date(timeInterval: -3600))
+        let featured = Asset(projectTitle: "Featured First", status: .featured, updatedAt: Date(timeIntervalSinceNow: -3600))
         store.addAsset(archived)
         store.addAsset(featured)
 
