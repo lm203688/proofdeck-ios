@@ -6,8 +6,8 @@
 //  presentation and the local-only feedback mailto URL. No store, network or
 //  UI state lives here.
 //
-//  Reused from the shared A-class core (audit 09 §3.1). Replace the feedback
-//  recipient with the developer-owned support inbox before release.
+//  Reused from the shared A-class core (audit 09 §3.1). The feedback recipient
+//  is the developer-owned support inbox, shared with the companion app.
 //
 
 import Foundation
@@ -35,8 +35,8 @@ struct AppInfo: Equatable {
 /// the system mail app; the app never sends or uploads this message itself.
 enum FeedbackMail {
 
-    // TODO(release): replace with the developer-owned support inbox.
-    static let recipient = "support@example.invalid"
+    /// Developer-owned support inbox for the local feedback mailto entry.
+    static let recipient = "463102527@qq.com"
 
     static func composeURL(to: String, subject: String, body: String) -> URL? {
         var components = URLComponents()
