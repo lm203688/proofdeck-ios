@@ -17,6 +17,8 @@ final class StoreViewModel: ObservableObject {
 
     @Published private(set) var assets: [Asset] = []
     @Published var searchText: String = ""
+    /// Draft captured from the Share Extension, waiting to be turned into a card.
+    @Published var pendingDraft: ShareDraft?
 
     private let store: StoreProtocol
     private let spotlight: SpotlightIndexerProtocol
@@ -26,6 +28,7 @@ final class StoreViewModel: ObservableObject {
         self.store = store
         self.spotlight = spotlight
         reload()
+        adoptDraft()
     }
 
     // MARK: - Reads
@@ -87,6 +90,18 @@ final class StoreViewModel: ObservableObject {
         store.addClip(clip)
         store.markReused(id: clip.assetID, at: Date())
         reload()
+    }
+
+    // MARK: - Shared draft
+
+    /// Reads a pending share draft from the App Group container, if one exists.
+    func adoptDraft() {
+        pendingDraft = ShareDraftStore.loadAndClear()
+    }
+
+    /// Clears the draft after the edit sheet has been dismissed.
+    func clearDraft() {
+        pendingDraft = nil
     }
 
     private func reload() {
