@@ -40,6 +40,9 @@ targets:
       - target: ProofDeckWidget
         embed: true
         link: false
+      - target: ProofDeckShare
+        embed: true
+        link: false
 
   ProofDeckWidget:
     type: app-extension
@@ -51,6 +54,21 @@ targets:
       PRODUCT_BUNDLE_IDENTIFIER: com.lixing.proofdeck.widget
       INFOPLIST_FILE: ProofDeck/Widgets/ProofDeckWidget/Info.plist
       CODE_SIGN_ENTITLEMENTS: ProofDeck/Widgets/ProofDeckWidget/ProofDeckWidget.entitlements
+      GENERATE_INFOPLIST_FILE: NO
+      TARGETED_DEVICE_FAMILY: "1,2"
+      CODE_STYLE: Swift
+    dependencies: []
+
+  ProofDeckShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ProofDeck/Extensions/ProofDeckShare
+      - path: ProofDeck/Shared
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.lixing.proofdeck.share
+      INFOPLIST_FILE: ProofDeck/Extensions/ProofDeckShare/Info.plist
+      CODE_SIGN_ENTITLEMENTS: ProofDeck/Extensions/ProofDeckShare/ProofDeckShare.entitlements
       GENERATE_INFOPLIST_FILE: NO
       TARGETED_DEVICE_FAMILY: "1,2"
       CODE_STYLE: Swift
