@@ -79,8 +79,14 @@ payments/invoices/tax, team seats, built-in product sales, open Q&A.
   YAML check) → `xcode-27` runner selects the newest Xcode ≥ iOS 27 SDK, installs
   XcodeGen, generates the project, picks the newest available iPhone simulator, builds
   Debug and runs unit tests. No signing secrets required.
-- `dry_run` / `inspect` / `prepare` / `release`: copied from the FollowDeck ci.yml and
-  parameterized once the ASC App ID and Route B signing material exist.
+- **`dry_run`** / **`release`** (Route B signing skeleton, gated): secrets already
+  provisioned in the repo; the lane imports the `.p12` into a throwaway keychain,
+  installs the main / widget / share profiles, archives Manual, exports the App
+  Store IPA and verifies SDK / build number / icon. TestFlight upload and App Store
+  submit stay disabled (`if: false`) until the ASC App record exists; fill
+  `ASC_APP_ID` and flip the gate then.
+- `inspect` / `prepare`: copied from the FollowDeck ci.yml once the ASC App ID and
+  subscription product IDs exist.
 
 ## Pre-release items still to fill
 
