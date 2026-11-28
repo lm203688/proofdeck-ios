@@ -67,6 +67,29 @@ jobs:
           fi
           echo "No obvious secret patterns in source."
 
+      - name: App icon must be opaque 1024 (ITMS-90717)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import struct, sys
+          path = "ProofDeck/Sources/ProofDeck/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
+          data = open(path, "rb").read()
+          if data[:8] != b"\x89PNG\r\n\x1a\n":
+              sys.exit("::error::AppIcon is not a PNG")
+          w, h, depth, ctype = struct.unpack(">IIBB", data[16:26])
+          bad = []
+          if ctype in (4, 6):
+              bad.append(f"alpha colour type {ctype}")
+          if b"tRNS" in data:
+              bad.append("tRNS transparency chunk")
+          if (w, h) != (1024, 1024):
+              bad.append(f"size {w}x{h} != 1024x1024")
+          if bad:
+              sys.exit("::error::Invalid large app icon (ITMS-90717): " + ", ".join(bad))
+          print(f"AppIcon OK: {w}x{h}, colour type {ctype} (no alpha)")
+          PY
+
       - name: Validate YAML
         shell: bash
         run: |
