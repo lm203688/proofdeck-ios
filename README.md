@@ -79,27 +79,30 @@ payments/invoices/tax, team seats, built-in product sales, open Q&A.
   YAML check) → `xcode-27` runner selects the newest Xcode ≥ iOS 27 SDK, installs
   XcodeGen, generates the project, picks the newest available iPhone simulator, builds
   Debug and runs unit tests. No signing secrets required.
-- **`dry_run`** / **`release`** (Route B signing skeleton, gated): secrets already
-  provisioned in the repo; the lane imports the `.p12` into a throwaway keychain,
-  installs the main / widget / share profiles, archives Manual, exports the App
-  Store IPA and verifies SDK / build number / icon. TestFlight upload and App Store
-  submit stay disabled (`if: false`) until the ASC App record exists; fill
-  `ASC_APP_ID` and flip the gate then.
-- `inspect` / `prepare`: copied from the FollowDeck ci.yml once the ASC App ID and
-  subscription product IDs exist.
+- **`dry_run`** (Route B signing): secrets already provisioned in the repo; the lane
+  imports the `.p12` into a throwaway keychain, installs the main / widget / share
+  profiles, archives Manual, exports the App Store IPA, verifies SDK / build number /
+  icon, then uploads to TestFlight. Dry-run builds use a CI-only build number segment
+  so they never collide with release builds.
+- **`release`**: same signing/archive/export path; the App Store submit stays gated
+  behind a manual `release` dispatch until listing materials are assembled in ASC.
+- `inspect` / `prepare`: copied from the FollowDeck ci.yml once the TestFlight and
+  listing materials are assembled in ASC.
 
 ## Pre-release items still to fill
 
 - Placeholder 1024×1024 opaque (24bpp RGB, no alpha) icon in `AppIcon.appiconset`; the final brand icon replaces it once the name is locked.
-- ASC App ID, privacy questionnaire (No Data Collected starting point), age rating,
-  territory availability excluding CHN.
+- ASC App record created (App ID 6840349401, iOS + visionOS). Still to fill in ASC:
+  privacy questionnaire (No Data Collected starting point), age rating, territory
+  availability excluding CHN.
 - Route B signing material: distribution `.p12` + App Store profiles, kept as CI
   secrets only.
 - Spotlight indexing, the widget snapshot, the SwiftData-backed local store and the
   Share Extension (shared text/URL into a pre-filled draft) are already wired.
 - Brand name public coarse check: trademark class 9/42 proximity + domain availability
-  (non-legal opinion); primary `ArchiveDeck`, fallbacks `ArchivDeck` / `DoneDeck` / `PortDeck`
-  if a conflict appears. CaseFolio / ProofStack / Workfolio / ReelDeck / Workdeck are ruled out.
+  (non-legal opinion). The store record name is `ArchiveDeck`; `ProofDeck` was already
+  taken on the App Store, and fallbacks `ArchivDeck` / `DoneDeck` / `PortDeck` checked
+  free. CaseFolio / ProofStack / Workfolio / ReelDeck / Workdeck are ruled out.
 
 ## Off-device note
 
