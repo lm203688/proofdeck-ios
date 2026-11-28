@@ -35,6 +35,8 @@ targets:
       CODE_SIGN_ENTITLEMENTS: ProofDeck/Sources/ProofDeck/ProofDeck.entitlements
       TARGETED_DEVICE_FAMILY: "1,2"   # iPhone + iPad
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      # Manual signing (Route B CI lane): matched to the "ProofDeck App Store" profile.
+      PROVISIONING_PROFILE_SPECIFIER: "ProofDeck App Store"
       CODE_STYLE: Swift
     dependencies:
       - target: ProofDeckWidget
@@ -56,6 +58,8 @@ targets:
       CODE_SIGN_ENTITLEMENTS: ProofDeck/Widgets/ProofDeckWidget/ProofDeckWidget.entitlements
       GENERATE_INFOPLIST_FILE: NO
       TARGETED_DEVICE_FAMILY: "1,2"
+      # Manual signing (Route B CI lane): matched to the widget's own App Store profile.
+      PROVISIONING_PROFILE_SPECIFIER: "ProofDeck Widget App Store"
       CODE_STYLE: Swift
     dependencies: []
 
@@ -71,6 +75,8 @@ targets:
       CODE_SIGN_ENTITLEMENTS: ProofDeck/Extensions/ProofDeckShare/ProofDeckShare.entitlements
       GENERATE_INFOPLIST_FILE: NO
       TARGETED_DEVICE_FAMILY: "1,2"
+      # Manual signing (Route B CI lane): matched to the share extension's App Store profile.
+      PROVISIONING_PROFILE_SPECIFIER: "ProofDeck Share App Store"
       CODE_STYLE: Swift
     dependencies: []
 
