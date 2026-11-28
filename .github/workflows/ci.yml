@@ -14,10 +14,10 @@ on:
         type: choice
         options:
           - compile   # build + unit tests on the simulator, no signing
-          - dry_run   # build, sign, export and verify IPA; TestFlight upload gated until the ASC App record exists
-          - release   # sign, export and submit for review (gated; needs the ASC App record)
+          - dry_run   # build, sign, export/verify IPA and upload to TestFlight
+          - release   # sign, export; App Store submit stays gated until listing materials are ready
           # inspect / prepare lanes are copied from the FollowDeck ci.yml once the
-          # ASC App ID and subscription product IDs exist.
+          # TestFlight/listing materials are assembled in ASC.
 
 env:
   SCHEME: ProofDeck
@@ -198,8 +198,24 @@ jobs:
       # profiles; it never mints a distribution certificate (orphaned certs
       # consume the account limit). Material/source steps mirror the FollowDeck
       # signing-runbook §2/§5/§6/§7/§8.
-      # NOTE: this lane has not been run on a real Mac yet. The TestFlight upload
-      # and App Store submit stay gated until the ASC App record exists.
+      # NOTE: this lane has not been run on a real Mac yet. TestFlight upload runs
+      # on dry_run; the App Store submit stays gated until listing materials are ready.
+      - name: Resolve build number
+        id: buildnum
+        if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
+        run: |
+          set -euo pipefail
+          BASE=$(sed -E -n 's/^[[:space:]]*CURRENT_PROJECT_VERSION:[[:space:]]*"([0-9]+)".*/\1/p' "$GITHUB_WORKSPACE/project.yml")
+          if [ "${{ github.event.inputs.action }}" = "dry_run" ]; then
+            # CI-only test segment: never collides with release builds (small
+            # project.yml numbers); run_id suffix keeps repeated dry_run unique.
+            BUILD=$(( BASE*100000 + (GITHUB_RUN_ID % 100000) ))
+          else
+            BUILD="$BASE"
+          fi
+          echo "build_number=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "Resolved build $BUILD (base $BASE)"
+
       - name: Verify signing secrets (Route B)
         if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
         env:
@@ -284,7 +300,8 @@ jobs:
             -archivePath "$RUNNER_TEMP/ProofDeck.xcarchive" \
             DEVELOPMENT_TEAM=98KA35Y747 \
             CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution"
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            CURRENT_PROJECT_VERSION=${{ steps.buildnum.outputs.build_number }}
 
       - name: Export IPA (App Store)
         if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
@@ -332,8 +349,8 @@ jobs:
           BUILD=$(plutil -extract CFBundleVersion raw "$APP/Info.plist")
           SDK_NAME=$(plutil -extract DTSDKName raw "$APP/Info.plist" 2>/dev/null || echo unknown)
           echo "IPA: version $VERSION build $BUILD, $SDK_NAME"
-          EXPECTED_BUILD=$(sed -E -n 's/^[[:space:]]*CURRENT_PROJECT_VERSION:[[:space:]]*"([0-9]+)".*/\1/p' "$GITHUB_WORKSPACE/project.yml")
-          test -n "$EXPECTED_BUILD" || { echo "::error::Could not read CURRENT_PROJECT_VERSION from project.yml"; exit 1; }
+          EXPECTED_BUILD="${{ steps.buildnum.outputs.build_number }}"
+          test -n "$EXPECTED_BUILD" || { echo "::error::Resolved build number is empty"; exit 1; }
           test "$BUILD" = "$EXPECTED_BUILD" || { echo "::error::Expected build $EXPECTED_BUILD, got $BUILD"; exit 1; }
           case "$SDK_NAME" in
             iphoneos27*|iphoneos28*|iphoneos29*) ;;
@@ -357,13 +374,11 @@ jobs:
           print("Bundle icons: no alpha channel")
           PY
 
-      # GATED: TestFlight upload and App Store submit stay disabled until the
-      # ProofDeck ASC App record exists (POST /v1/apps returns 403; it must be
-      # created in the ASC web). Once created, set ASC_APP_ID below and flip the
-      # `if: false` gate to the action condition. This lane currently stops after
-      # export/verification so no TestFlight build slot is consumed.
-      - name: Upload to TestFlight (gated)
-        if: false && github.event.inputs.action == 'dry_run'
+      # TestFlight upload runs on dry_run. The App Store submit stays gated:
+      # listing metadata, privacy questionnaire, screenshots and availability
+      # must be assembled in ASC first. This lane stops after the TestFlight upload.
+      - name: Upload to TestFlight
+        if: github.event.inputs.action == 'dry_run'
         uses: apple-actions/upload-testflight-build@v5
         with:
           app-path: ${{ runner.temp }}/ipa/ProofDeck.ipa
@@ -372,6 +387,8 @@ jobs:
           api-key-id: ${{ secrets.ASC_KEY_ID }}
           api-private-key: ${{ secrets.ASC_KEY_CONTENT }}
           uses-non-exempt-encryption: 'false'
+          # Skip processing wait until Test Information and internal groups are
+          # configured in ASC.
           wait-for-processing: 'false'
 
       - name: Submit for review (release only, gated)
@@ -380,6 +397,6 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
-          ASC_APP_ID: ""  # TODO: fill after the ASC App record is created
+          ASC_APP_ID: "6840349401"
         run: |
-          echo "Release submit gated: ASC App record not created yet."
+          echo "Release submit gated: listing materials not ready in ASC."
