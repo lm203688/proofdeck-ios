@@ -14,9 +14,10 @@ on:
         type: choice
         options:
           - compile   # build + unit tests on the simulator, no signing
-          # dry_run / inspect / prepare / release lanes are copied from the
-          # FollowDeck ci.yml and parameterized once the ASC App ID and signing
-          # material exist.
+          - dry_run   # build, sign, export and verify IPA; TestFlight upload gated until the ASC App record exists
+          - release   # sign, export and submit for review (gated; needs the ASC App record)
+          # inspect / prepare lanes are copied from the FollowDeck ci.yml once the
+          # ASC App ID and subscription product IDs exist.
 
 env:
   SCHEME: ProofDeck
@@ -191,3 +192,194 @@ jobs:
             -scheme "$SCHEME" \
             -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
             -configuration Debug
+
+      # --- Signing, archive, export and IPA verification (dry_run / release) ---
+      # Route B (default): the runner only imports a pre-made .p12 + App Store
+      # profiles; it never mints a distribution certificate (orphaned certs
+      # consume the account limit). Material/source steps mirror the FollowDeck
+      # signing-runbook §2/§5/§6/§7/§8.
+      # NOTE: this lane has not been run on a real Mac yet. The TestFlight upload
+      # and App Store submit stay gated until the ASC App record exists.
+      - name: Verify signing secrets (Route B)
+        if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          DIST_CERT_P12: ${{ secrets.DIST_CERT_P12 }}
+          DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
+          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
+          PROVISIONING_PROFILE_WIDGET: ${{ secrets.PROVISIONING_PROFILE_WIDGET }}
+          PROVISIONING_PROFILE_SHARE: ${{ secrets.PROVISIONING_PROFILE_SHARE }}
+        run: |
+          set -euo pipefail
+          missing=""
+          for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_CONTENT DIST_CERT_P12 DIST_CERT_PASSWORD PROVISIONING_PROFILE PROVISIONING_PROFILE_WIDGET PROVISIONING_PROFILE_SHARE; do
+            if [ -z "${!v:-}" ]; then missing="$missing $v"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing Route B signing secrets:$missing. Provision per signing-runbook.md, or switch to Route A."
+            exit 1
+          fi
+          echo "All Route B signing secrets present."
+
+      - name: Prepare signing material
+        id: prepare
+        if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          DIST_CERT_P12: ${{ secrets.DIST_CERT_P12 }}
+          DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
+          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
+          PROVISIONING_PROFILE_WIDGET: ${{ secrets.PROVISIONING_PROFILE_WIDGET }}
+          PROVISIONING_PROFILE_SHARE: ${{ secrets.PROVISIONING_PROFILE_SHARE }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$HOME/private_keys" "$HOME/Library/MobileDevice/Provisioning Profiles"
+
+          # ASC API key (.p8, raw PKCS8 PEM), kept on disk only for Route A
+          # automatic provisioning; the TestFlight upload passes it inline.
+          echo "$ASC_KEY_CONTENT" > "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          chmod 600 "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+
+          # Distribution .p12 into a throwaway keychain; partition list prevents
+          # a hanging codesign prompt.
+          echo "$DIST_CERT_P12" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          KEYCHAIN="$RUNNER_TEMP/app-signing.keychain-db"
+          security create-keychain -p "$DIST_CERT_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$DIST_CERT_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/dist.p12" -P "$DIST_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$DIST_CERT_PASSWORD" "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN"
+
+          # App Store profiles: main app, widget extension, share extension.
+          # Each is decoded, its UUID resolved, and installed under the profiles dir.
+          install_profile() {
+            local b64="$1" out="$2" uuid_var="$3"
+            echo "$b64" | base64 --decode > "$out"
+            local uuid
+            uuid=$(security cms -D -i "$out" | plutil -extract UUID raw -)
+            cp "$out" "$HOME/Library/MobileDevice/Provisioning Profiles/${uuid}.mobileprovision"
+            echo "${uuid_var}=${uuid}" >> "$GITHUB_OUTPUT"
+            echo "Installed profile $uuid_var: $uuid"
+          }
+          install_profile "$PROVISIONING_PROFILE" "$RUNNER_TEMP/profile.mobileprovision" "profile_uuid"
+          install_profile "$PROVISIONING_PROFILE_WIDGET" "$RUNNER_TEMP/profile_widget.mobileprovision" "profile_uuid_widget"
+          install_profile "$PROVISIONING_PROFILE_SHARE" "$RUNNER_TEMP/profile_share.mobileprovision" "profile_uuid_share"
+          echo "Prepared signing material."
+
+      - name: Archive Release build
+        if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
+        run: |
+          set -euo pipefail
+          xcodegen generate
+          xcodebuild archive \
+            -project ProofDeck.xcodeproj \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/ProofDeck.xcarchive" \
+            DEVELOPMENT_TEAM=98KA35Y747 \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution"
+
+      - name: Export IPA (App Store)
+        if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
+        env:
+          PROFILE_UUID: ${{ steps.prepare.outputs.profile_uuid }}
+          PROFILE_UUID_WIDGET: ${{ steps.prepare.outputs.profile_uuid_widget }}
+          PROFILE_UUID_SHARE: ${{ steps.prepare.outputs.profile_uuid_share }}
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/ExportOptions.plist" "$PROFILE_UUID" "$PROFILE_UUID_WIDGET" "$PROFILE_UUID_SHARE" <<'PY'
+          import sys, plistlib
+          path, uuid, uuid_widget, uuid_share = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+          data = {
+              "method": "app-store",
+              "teamID": "98KA35Y747",
+              "compileBitcode": False,
+              "provisioningProfiles": {
+                  "com.lixing.proofdeck": uuid,
+                  "com.lixing.proofdeck.widget": uuid_widget,
+                  "com.lixing.proofdeck.share": uuid_share,
+              },
+          }
+          with open(path, "wb") as f:
+              plistlib.dump(data, f)
+          PY
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/ProofDeck.xcarchive" \
+            -exportPath "$RUNNER_TEMP/ipa" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+
+          # The upload action does not expand globs: point it at the concrete IPA.
+          ls -la "$RUNNER_TEMP/ipa"
+          test -f "$RUNNER_TEMP/ipa/ProofDeck.ipa" || { echo "::error::ProofDeck.ipa not exported to $RUNNER_TEMP/ipa"; exit 1; }
+
+      - name: Verify exported binary (SDK + build number + icon)
+        if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/unpacked/Payload/ProofDeck.app"
+          rm -rf "$RUNNER_TEMP/unpacked"; mkdir -p "$RUNNER_TEMP/unpacked"
+          unzip -q "$RUNNER_TEMP/ipa/ProofDeck.ipa" -d "$RUNNER_TEMP/unpacked"
+          test -d "$APP" || { echo "::error::No Payload/ProofDeck.app in IPA"; exit 1; }
+
+          VERSION=$(plutil -extract CFBundleShortVersionString raw "$APP/Info.plist")
+          BUILD=$(plutil -extract CFBundleVersion raw "$APP/Info.plist")
+          SDK_NAME=$(plutil -extract DTSDKName raw "$APP/Info.plist" 2>/dev/null || echo unknown)
+          echo "IPA: version $VERSION build $BUILD, $SDK_NAME"
+          EXPECTED_BUILD=$(sed -E -n 's/^[[:space:]]*CURRENT_PROJECT_VERSION:[[:space:]]*"([0-9]+)".*/\1/p' "$GITHUB_WORKSPACE/project.yml")
+          test -n "$EXPECTED_BUILD" || { echo "::error::Could not read CURRENT_PROJECT_VERSION from project.yml"; exit 1; }
+          test "$BUILD" = "$EXPECTED_BUILD" || { echo "::error::Expected build $EXPECTED_BUILD, got $BUILD"; exit 1; }
+          case "$SDK_NAME" in
+            iphoneos27*|iphoneos28*|iphoneos29*) ;;
+            *) echo "::error::IPA was linked against $SDK_NAME (ITMS-90725 needs ios27+)"; exit 1 ;;
+          esac
+
+          # Large icon inside the bundle must be alpha-free (asset catalog output).
+          python3 - "$APP" <<'PY'
+          import glob, struct, sys, os
+          app = sys.argv[1]
+          pngs = [p for p in glob.glob(os.path.join(app, "AppIcon*.png"))] or \
+                 [p for p in glob.glob(os.path.join(app, "*.png")) if "Icon" in os.path.basename(p)]
+          print("icon candidates:", [os.path.basename(p) for p in pngs])
+          for p in pngs:
+              data = open(p, "rb").read()
+              if data[:8] != b"\x89PNG\r\n\x1a\n":
+                  continue
+              ct = struct.unpack(">IIBB", data[16:26])[3]
+              if ct in (4, 6) or b"tRNS" in data:
+                  sys.exit(f"::error::{os.path.basename(p)} still carries alpha (ITMS-90717)")
+          print("Bundle icons: no alpha channel")
+          PY
+
+      # GATED: TestFlight upload and App Store submit stay disabled until the
+      # ProofDeck ASC App record exists (POST /v1/apps returns 403; it must be
+      # created in the ASC web). Once created, set ASC_APP_ID below and flip the
+      # `if: false` gate to the action condition. This lane currently stops after
+      # export/verification so no TestFlight build slot is consumed.
+      - name: Upload to TestFlight (gated)
+        if: false && github.event.inputs.action == 'dry_run'
+        uses: apple-actions/upload-testflight-build@v5
+        with:
+          app-path: ${{ runner.temp }}/ipa/ProofDeck.ipa
+          app-type: ios
+          issuer-id: ${{ secrets.ASC_ISSUER_ID }}
+          api-key-id: ${{ secrets.ASC_KEY_ID }}
+          api-private-key: ${{ secrets.ASC_KEY_CONTENT }}
+          uses-non-exempt-encryption: 'false'
+          wait-for-processing: 'false'
+
+      - name: Submit for review (release only, gated)
+        if: false && github.event.inputs.action == 'release'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          ASC_APP_ID: ""  # TODO: fill after the ASC App record is created
+        run: |
+          echo "Release submit gated: ASC App record not created yet."
